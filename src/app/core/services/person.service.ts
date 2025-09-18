@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Person } from '../models/person.model';
+import { PageResponse } from '../models/page-response.model';
 
 @Injectable({
   providedIn: 'root'
@@ -15,7 +16,17 @@ export class PersonService {
     return this.http.get<Person[]>(this.apiUrl);
   }
 
-  getById(id: number): Observable<Person> {
+  getAllPaged(page: number = 0, size: number = 10, sortBy: string = 'name', direction: string = 'ASC'): Observable<PageResponse<Person>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sortBy', sortBy)
+      .set('direction', direction);
+    
+    return this.http.get<PageResponse<Person>>(`${this.apiUrl}/paged`, { params });
+  }
+
+  getById(id: string): Observable<Person> {
     return this.http.get<Person>(`${this.apiUrl}/${id}`);
   }
 
@@ -23,11 +34,11 @@ export class PersonService {
     return this.http.post<Person>(this.apiUrl, person);
   }
 
-  update(id: number, person: Person): Observable<Person> {
+  update(id: string, person: Person): Observable<Person> {
     return this.http.put<Person>(`${this.apiUrl}/${id}`, person);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 
@@ -35,7 +46,18 @@ export class PersonService {
     return this.http.get<Person[]>(`${this.apiUrl}/search?name=${name}`);
   }
 
+  searchByNamePaged(name: string, page: number = 0, size: number = 10, sortBy: string = 'name', direction: string = 'ASC'): Observable<PageResponse<Person>> {
+    let params = new HttpParams()
+      .set('name', name)
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sortBy', sortBy)
+      .set('direction', direction);
+    
+    return this.http.get<PageResponse<Person>>(`${this.apiUrl}/search/paged`, { params });
+  }
+
   clearCache(): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/cache/clear`, {});
+    return this.http.delete<void>(`${this.apiUrl}/cache/clear`);
   }
 }

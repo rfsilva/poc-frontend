@@ -98,7 +98,7 @@ import { Person } from '../../../core/models/person.model';
 export class PersonFormComponent implements OnInit {
   personForm!: FormGroup;
   isEditMode = false;
-  personId?: number;
+  personId?: string;
   loading = false;
   submitting = false;
   submitted = false;
@@ -119,7 +119,7 @@ export class PersonFormComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.isEditMode = true;
-      this.personId = +id;
+      this.personId = id;
       this.loadPerson(this.personId);
     }
   }
@@ -135,7 +135,7 @@ export class PersonFormComponent implements OnInit {
     });
   }
 
-  loadPerson(id: number): void {
+  loadPerson(id: string): void {
     this.loading = true;
     this.personService.getById(id).subscribe({
       next: (person) => {

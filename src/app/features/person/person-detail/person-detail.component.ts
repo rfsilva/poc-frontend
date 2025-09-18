@@ -70,9 +70,9 @@ export class PersonDetailComponent implements OnInit {
 
   ngOnInit(): void {
     this.loading = true;
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id = this.route.snapshot.paramMap.get('id');
     
-    if (isNaN(id)) {
+    if (!id) {
       this.router.navigate(['/persons']);
       return;
     }
