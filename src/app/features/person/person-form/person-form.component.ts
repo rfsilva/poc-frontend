@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, Router } from '@angular/router';
 import { PersonService } from '../../../core/services/person.service';
 import { COUNTRIES, GENDERS, Person } from '../../../core/models/person.model';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-person-form',
@@ -58,12 +59,14 @@ import { COUNTRIES, GENDERS, Person } from '../../../core/models/person.model';
               class="form-control" 
               id="cpf" 
               formControlName="cpf"
-              [ngClass]="{'is-invalid': submitted && f['cpf'].errors}"
+              [ngClass]="{'is-invalid': (submitted && f['cpf'].errors) || cpfError}"
               (input)="formatCpf($event)"
+              (focus)="clearCpfError()"
             >
-            <div *ngIf="submitted && f['cpf'].errors" class="invalid-feedback">
-              <div *ngIf="f['cpf'].errors['pattern']">CPF deve conter apenas números</div>
-              <div *ngIf="f['cpf'].errors['minlength'] || f['cpf'].errors['maxlength']">CPF deve ter 11 dígitos</div>
+            <div *ngIf="(submitted && f['cpf'].errors) || cpfError" class="invalid-feedback">
+              <div *ngIf="f['cpf'].errors?.['pattern']">CPF deve conter apenas números</div>
+              <div *ngIf="f['cpf'].errors?.['minlength'] || f['cpf'].errors?.['maxlength']">CPF deve ter 11 dígitos</div>
+              <div *ngIf="cpfError">{{ cpfErrorMessage }}</div>
             </div>
           </div>
           
@@ -145,7 +148,7 @@ import { COUNTRIES, GENDERS, Person } from '../../../core/models/person.model';
       </div>
     </div>
     
-    <div class="toast-container" *ngIf="showToast">
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" *ngIf="showToast">
       <div class="toast show" [ngClass]="{'bg-success': !toastError, 'bg-danger': toastError}" class="text-white">
         <div class="toast-header" [ngClass]="{'bg-success': !toastError, 'bg-danger': toastError}" class="text-white">
           <strong class="me-auto">{{ toastError ? 'Erro' : 'Sucesso' }}</strong>
@@ -155,6 +158,12 @@ import { COUNTRIES, GENDERS, Person } from '../../../core/models/person.model';
           {{ toastMessage }}
         </div>
       </div>
+    </div>
+    
+    <!-- Alerta de erro de CPF que permanece visível -->
+    <div *ngIf="cpfError" class="alert alert-danger alert-dismissible fade show position-fixed bottom-0 start-0 m-3" role="alert">
+      <strong>Erro de CPF:</strong> {{ cpfErrorMessage }}
+      <button type="button" class="btn-close" (click)="clearCpfError()"></button>
     </div>
   `
 })
@@ -171,6 +180,8 @@ export class PersonFormComponent implements OnInit {
   countries = COUNTRIES;
   genders = GENDERS;
   showPassportField = false;
+  cpfError = false;
+  cpfErrorMessage = '';
 
   constructor(
     private fb: FormBuilder,
@@ -237,6 +248,7 @@ export class PersonFormComponent implements OnInit {
 
   onSubmit(): void {
     this.submitted = true;
+    this.clearCpfError();
     
     if (this.personForm.invalid) {
       return;
@@ -260,9 +272,7 @@ export class PersonFormComponent implements OnInit {
           setTimeout(() => this.router.navigate(['/persons']), 1500);
         },
         error: (error) => {
-          console.error('Error updating person', error);
-          this.submitting = false;
-          this.showToastMessage('Erro ao atualizar pessoa', true);
+          this.handleError(error);
         }
       });
     } else {
@@ -273,11 +283,38 @@ export class PersonFormComponent implements OnInit {
           setTimeout(() => this.router.navigate(['/persons']), 1500);
         },
         error: (error) => {
-          console.error('Error creating person', error);
-          this.submitting = false;
-          this.showToastMessage('Erro ao criar pessoa', true);
+          this.handleError(error);
         }
       });
+    }
+  }
+
+  handleError(error: any): void {
+    this.submitting = false;
+    
+    if (error instanceof HttpErrorResponse) {
+      // Verifica se é o erro específico de CPF inválido
+      if (error.status === 400 && error.error && error.error.message && 
+          error.error.message.includes('Invalid CPF')) {
+        this.cpfError = true;
+        this.cpfErrorMessage = 'CPF inválido. Por favor, forneça um número de CPF válido.';
+        // Foca no campo de CPF para chamar atenção do usuário
+        setTimeout(() => {
+          const cpfInput = document.getElementById('cpf');
+          if (cpfInput) {
+            cpfInput.focus();
+          }
+        }, 100);
+      } else {
+        // Outros erros
+        this.showToastMessage(
+          error.error?.message || 'Ocorreu um erro ao processar sua solicitação', 
+          true
+        );
+      }
+    } else {
+      console.error('Error processing request', error);
+      this.showToastMessage('Erro ao processar solicitação', true);
     }
   }
 
@@ -298,6 +335,14 @@ export class PersonFormComponent implements OnInit {
     } else {
       event.target.value = value;
     }
+    
+    // Limpa o erro de CPF quando o usuário começa a digitar novamente
+    this.clearCpfError();
+  }
+
+  clearCpfError(): void {
+    this.cpfError = false;
+    this.cpfErrorMessage = '';
   }
 
   onNationalityChange(): void {
@@ -323,6 +368,7 @@ export class PersonFormComponent implements OnInit {
     this.toastMessage = message;
     this.toastError = isError;
     this.showToast = true;
-    setTimeout(() => this.showToast = false, 3000);
+    // Aumenta o tempo de exibição do toast para 6 segundos (6000ms)
+    setTimeout(() => this.showToast = false, 6000);
   }
 }
