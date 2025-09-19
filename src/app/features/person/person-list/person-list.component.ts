@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { PersonService } from '../../../core/services/person.service';
 import { Person } from '../../../core/models/person.model';
 import { PageResponse } from '../../../core/models/page-response.model';
+
+declare var bootstrap: any;
 
 @Component({
   selector: 'app-person-list',
@@ -36,15 +38,15 @@ import { PageResponse } from '../../../core/models/page-response.model';
         </div>
       </div>
       <div class="col-md-6 text-end">
-        <div class="btn-group">
-          <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <div class="dropdown">
+          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="pageSizeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
             {{ pageSize }} itens por página
           </button>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" (click)="changePageSize(5)">5 itens</a></li>
-            <li><a class="dropdown-item" (click)="changePageSize(10)">10 itens</a></li>
-            <li><a class="dropdown-item" (click)="changePageSize(20)">20 itens</a></li>
-            <li><a class="dropdown-item" (click)="changePageSize(50)">50 itens</a></li>
+          <ul class="dropdown-menu" aria-labelledby="pageSizeDropdown">
+            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(5)">5 itens</a></li>
+            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(10)">10 itens</a></li>
+            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(20)">20 itens</a></li>
+            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(50)">50 itens</a></li>
           </ul>
         </div>
       </div>
@@ -64,17 +66,21 @@ import { PageResponse } from '../../../core/models/page-response.model';
         <table class="table table-striped table-hover">
           <thead>
             <tr>
-              <th (click)="sort('id')">ID <i *ngIf="sortBy === 'id'" [class]="sortDirection === 'ASC' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i></th>
               <th (click)="sort('name')">Nome <i *ngIf="sortBy === 'name'" [class]="sortDirection === 'ASC' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i></th>
               <th (click)="sort('email')">Email <i *ngIf="sortBy === 'email'" [class]="sortDirection === 'ASC' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i></th>
+              <th>CPF</th>
+              <th>Nacionalidade</th>
+              <th>Gênero</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let person of persons">
-              <td>{{ person.id }}</td>
               <td>{{ person.name }}</td>
               <td>{{ person.email }}</td>
+              <td>{{ person.formattedCpf }}</td>
+              <td><span [innerHTML]="person.nationalityFlag"></span> {{ person.nationalityName }}</td>
+              <td>{{ person.genderDisplay }}</td>
               <td>
                 <div class="btn-group">
                   <button class="btn btn-sm btn-outline-primary" [routerLink]="['/persons', person.id]">Ver</button>
@@ -95,23 +101,23 @@ import { PageResponse } from '../../../core/models/page-response.model';
         <nav>
           <ul class="pagination">
             <li class="page-item" [class.disabled]="currentPage === 0">
-              <a class="page-link" (click)="goToPage(0)">Primeira</a>
+              <a class="page-link" href="javascript:void(0)" (click)="goToPage(0)">Primeira</a>
             </li>
             <li class="page-item" [class.disabled]="currentPage === 0">
-              <a class="page-link" (click)="goToPage(currentPage - 1)">Anterior</a>
+              <a class="page-link" href="javascript:void(0)" (click)="goToPage(currentPage - 1)">Anterior</a>
             </li>
             
             <ng-container *ngFor="let page of getPageRange()">
               <li class="page-item" [class.active]="page === currentPage">
-                <a class="page-link" (click)="goToPage(page)">{{ page + 1 }}</a>
+                <a class="page-link" href="javascript:void(0)" (click)="goToPage(page)">{{ page + 1 }}</a>
               </li>
             </ng-container>
             
             <li class="page-item" [class.disabled]="currentPage === totalPages - 1">
-              <a class="page-link" (click)="goToPage(currentPage + 1)">Próxima</a>
+              <a class="page-link" href="javascript:void(0)" (click)="goToPage(currentPage + 1)">Próxima</a>
             </li>
             <li class="page-item" [class.disabled]="currentPage === totalPages - 1">
-              <a class="page-link" (click)="goToPage(totalPages - 1)">Última</a>
+              <a class="page-link" href="javascript:void(0)" (click)="goToPage(totalPages - 1)">Última</a>
             </li>
           </ul>
         </nav>
@@ -131,7 +137,7 @@ import { PageResponse } from '../../../core/models/page-response.model';
     </div>
   `
 })
-export class PersonListComponent implements OnInit {
+export class PersonListComponent implements OnInit, AfterViewInit {
   persons: Person[] = [];
   loading = false;
   searchTerm = '';
@@ -148,10 +154,18 @@ export class PersonListComponent implements OnInit {
   sortBy = 'name';
   sortDirection = 'ASC';
 
-  constructor(private personService: PersonService) {}
+  constructor(private personService: PersonService, private elementRef: ElementRef) {}
 
   ngOnInit(): void {
     this.loadPersonsPaged();
+  }
+
+  ngAfterViewInit(): void {
+    // Inicializar os dropdowns do Bootstrap após a renderização da view
+    const dropdownElementList = this.elementRef.nativeElement.querySelectorAll('.dropdown-toggle');
+    dropdownElementList.forEach((dropdownToggleEl: any) => {
+      new bootstrap.Dropdown(dropdownToggleEl);
+    });
   }
 
   loadPersons(): void {

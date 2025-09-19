@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { PersonService } from '../../../core/services/person.service';
-import { Person } from '../../../core/models/person.model';
+import { COUNTRIES, GENDERS, Person } from '../../../core/models/person.model';
 
 @Component({
   selector: 'app-person-form',
@@ -49,6 +49,69 @@ import { Person } from '../../../core/models/person.model';
               <div *ngIf="f['email'].errors['required']">Email é obrigatório</div>
               <div *ngIf="f['email'].errors['email']">Email inválido</div>
             </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="cpf" class="form-label">CPF</label>
+            <input 
+              type="text" 
+              class="form-control" 
+              id="cpf" 
+              formControlName="cpf"
+              [ngClass]="{'is-invalid': submitted && f['cpf'].errors}"
+              (input)="formatCpf($event)"
+            >
+            <div *ngIf="submitted && f['cpf'].errors" class="invalid-feedback">
+              <div *ngIf="f['cpf'].errors['pattern']">CPF deve conter apenas números</div>
+              <div *ngIf="f['cpf'].errors['minlength'] || f['cpf'].errors['maxlength']">CPF deve ter 11 dígitos</div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="nationality" class="form-label">Nacionalidade *</label>
+            <select 
+              class="form-select" 
+              id="nationality" 
+              formControlName="nationality"
+              [ngClass]="{'is-invalid': submitted && f['nationality'].errors}"
+              (change)="onNationalityChange()"
+            >
+              <option value="" disabled>Selecione um país</option>
+              <option *ngFor="let country of countries" [value]="country.code">
+                {{ country.flag }} {{ country.name }} ({{ country.code }})
+              </option>
+            </select>
+            <div *ngIf="submitted && f['nationality'].errors" class="invalid-feedback">
+              <div *ngIf="f['nationality'].errors['required']">Nacionalidade é obrigatória</div>
+            </div>
+          </div>
+          
+          <div class="mb-3" *ngIf="showPassportField">
+            <label for="passport" class="form-label">Passaporte *</label>
+            <input 
+              type="text" 
+              class="form-control" 
+              id="passport" 
+              formControlName="passport"
+              [ngClass]="{'is-invalid': submitted && f['passport'].errors}"
+            >
+            <div *ngIf="submitted && f['passport'].errors" class="invalid-feedback">
+              <div *ngIf="f['passport'].errors['required']">Passaporte é obrigatório para estrangeiros</div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="gender" class="form-label">Gênero</label>
+            <select 
+              class="form-select" 
+              id="gender" 
+              formControlName="gender"
+            >
+              <option value="" disabled>Selecione um gênero</option>
+              <option *ngFor="let gender of genders" [value]="gender.value">
+                {{ gender.display }}
+              </option>
+            </select>
           </div>
           
           <div class="mb-3">
@@ -105,6 +168,9 @@ export class PersonFormComponent implements OnInit {
   showToast = false;
   toastMessage = '';
   toastError = false;
+  countries = COUNTRIES;
+  genders = GENDERS;
+  showPassportField = false;
 
   constructor(
     private fb: FormBuilder,
@@ -130,22 +196,35 @@ export class PersonFormComponent implements OnInit {
     this.personForm = this.fb.group({
       name: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
+      cpf: ['', [Validators.pattern(/^\d{11}$/)]],
+      nationality: ['BRA', Validators.required],
+      passport: [''],
+      gender: [''],
       address: [''],
       phoneNumber: ['']
     });
+    
+    // Inicializa o campo de passaporte como não obrigatório (brasileiro por padrão)
+    this.onNationalityChange();
   }
 
   loadPerson(id: string): void {
     this.loading = true;
     this.personService.getById(id).subscribe({
       next: (person) => {
-        
         this.personForm.patchValue({
           name: person.name,
           email: person.email,
+          cpf: person.cpf,
+          nationality: person.nationality,
+          passport: person.passport,
+          gender: person.gender,
           address: person.address,
           phoneNumber: person.phoneNumber
         });
+        
+        // Atualiza a validação do passaporte com base na nacionalidade
+        this.onNationalityChange();
         this.loading = false;
       },
       error: (error) => {
@@ -164,7 +243,14 @@ export class PersonFormComponent implements OnInit {
     }
     
     this.submitting = true;
-    const personData: Person = this.personForm.value;
+    const formData = this.personForm.value;
+    
+    // Remove formatação do CPF antes de enviar para o backend
+    if (formData.cpf) {
+      formData.cpf = formData.cpf.replace(/\D/g, '');
+    }
+    
+    const personData: Person = formData;
     
     if (this.isEditMode && this.personId) {
       this.personService.update(this.personId, personData).subscribe({
@@ -193,6 +279,40 @@ export class PersonFormComponent implements OnInit {
         }
       });
     }
+  }
+
+  formatCpf(event: any): void {
+    let value = event.target.value.replace(/\D/g, '');
+    
+    if (value.length > 11) {
+      value = value.substring(0, 11);
+    }
+    
+    // Formata o CPF enquanto o usuário digita
+    if (value.length > 9) {
+      event.target.value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+    } else if (value.length > 6) {
+      event.target.value = value.replace(/^(\d{3})(\d{3})(\d{1,3})$/, '$1.$2.$3');
+    } else if (value.length > 3) {
+      event.target.value = value.replace(/^(\d{3})(\d{1,3})$/, '$1.$2');
+    } else {
+      event.target.value = value;
+    }
+  }
+
+  onNationalityChange(): void {
+    const nationality = this.personForm.get('nationality')?.value;
+    this.showPassportField = nationality !== 'BRA';
+    
+    const passportControl = this.personForm.get('passport');
+    if (this.showPassportField) {
+      // Passaporte é obrigatório para estrangeiros
+      passportControl?.setValidators([Validators.required]);
+    } else {
+      // Passaporte é opcional para brasileiros
+      passportControl?.clearValidators();
+    }
+    passportControl?.updateValueAndValidity();
   }
 
   goBack(): void {

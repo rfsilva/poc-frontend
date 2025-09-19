@@ -15,8 +15,31 @@ describe('PersonListComponent', () => {
   let personServiceSpy: jasmine.SpyObj<PersonService>;
 
   const mockPersons: Person[] = [
-    { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' },
-    { id: '2', name: 'Jane Doe', email: 'jane@example.com', birthDate: '1992-02-02' }
+    { 
+      id: '1', 
+      name: 'John Doe', 
+      email: 'john@example.com', 
+      cpf: '12345678901',
+      formattedCpf: '123.456.789-01',
+      nationality: 'BRA',
+      nationalityName: 'Brasil',
+      nationalityFlag: '🇧🇷',
+      gender: 'M',
+      genderDisplay: 'Masculino'
+    },
+    { 
+      id: '2', 
+      name: 'Jane Doe', 
+      email: 'jane@example.com', 
+      cpf: '98765432109',
+      formattedCpf: '987.654.321-09',
+      nationality: 'USA',
+      nationalityName: 'Estados Unidos',
+      nationalityFlag: '🇺🇸',
+      passport: 'AB1234567',
+      gender: 'F',
+      genderDisplay: 'Feminino'
+    }
   ];
 
   const mockPageResponse: PageResponse<Person> = {
@@ -247,5 +270,31 @@ describe('PersonListComponent', () => {
     searchInput.triggerEventHandler('keyup.enter', {});
     
     expect(component.searchPersons).toHaveBeenCalled();
+  });
+
+  it('should display formatted CPF in the table', () => {
+    fixture.detectChanges();
+    const tableRows = fixture.debugElement.queryAll(By.css('tbody tr'));
+    expect(tableRows.length).toBe(2);
+    
+    const cpfCells = fixture.debugElement.queryAll(By.css('tbody tr td:nth-child(3)'));
+    expect(cpfCells[0].nativeElement.textContent).toContain('123.456.789-01');
+    expect(cpfCells[1].nativeElement.textContent).toContain('987.654.321-09');
+  });
+
+  it('should display nationality with flag in the table', () => {
+    fixture.detectChanges();
+    const nationalityCells = fixture.debugElement.queryAll(By.css('tbody tr td:nth-child(4)'));
+    expect(nationalityCells[0].nativeElement.textContent).toContain('🇧🇷');
+    expect(nationalityCells[0].nativeElement.textContent).toContain('Brasil');
+    expect(nationalityCells[1].nativeElement.textContent).toContain('🇺🇸');
+    expect(nationalityCells[1].nativeElement.textContent).toContain('Estados Unidos');
+  });
+
+  it('should display gender in the table', () => {
+    fixture.detectChanges();
+    const genderCells = fixture.debugElement.queryAll(By.css('tbody tr td:nth-child(5)'));
+    expect(genderCells[0].nativeElement.textContent).toContain('Masculino');
+    expect(genderCells[1].nativeElement.textContent).toContain('Feminino');
   });
 });

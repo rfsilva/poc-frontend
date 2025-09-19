@@ -39,6 +39,28 @@ import { Person } from '../../../core/models/person.model';
           <div class="col-md-9">{{ person.email }}</div>
         </div>
         
+        <div class="row mb-3" *ngIf="person.formattedCpf">
+          <div class="col-md-3 fw-bold">CPF:</div>
+          <div class="col-md-9">{{ person.formattedCpf }}</div>
+        </div>
+        
+        <div class="row mb-3" *ngIf="person.nationality">
+          <div class="col-md-3 fw-bold">Nacionalidade:</div>
+          <div class="col-md-9">
+            {{ person.nationalityFlag }} {{ person.nationalityName }} ({{ person.nationality }})
+          </div>
+        </div>
+        
+        <div class="row mb-3" *ngIf="person.passport">
+          <div class="col-md-3 fw-bold">Passaporte:</div>
+          <div class="col-md-9">{{ person.passport }}</div>
+        </div>
+        
+        <div class="row mb-3" *ngIf="person.gender">
+          <div class="col-md-3 fw-bold">Gênero:</div>
+          <div class="col-md-9">{{ person.genderDisplay }}</div>
+        </div>
+        
         <div class="row mb-3" *ngIf="person.address">
           <div class="col-md-3 fw-bold">Endereço:</div>
           <div class="col-md-9">{{ person.address }}</div>
