@@ -62,10 +62,10 @@ import { HttpErrorResponse } from '@angular/common/http';
               [ngClass]="{'is-invalid': (submitted && f['cpf'].errors) || cpfError}"
               (input)="formatCpf($event)"
               (focus)="clearCpfError()"
+              placeholder="000.000.000-00"
             >
             <div *ngIf="(submitted && f['cpf'].errors) || cpfError" class="invalid-feedback">
-              <div *ngIf="f['cpf'].errors?.['pattern']">CPF deve conter apenas números</div>
-              <div *ngIf="f['cpf'].errors?.['minlength'] || f['cpf'].errors?.['maxlength']">CPF deve ter 11 dígitos</div>
+              <div *ngIf="f['cpf'].errors?.['cpfInvalid']">CPF deve ter 11 dígitos</div>
               <div *ngIf="cpfError">{{ cpfErrorMessage }}</div>
             </div>
           </div>
@@ -207,7 +207,7 @@ export class PersonFormComponent implements OnInit {
     this.personForm = this.fb.group({
       name: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
-      cpf: ['', [Validators.pattern(/^\d{11}$/)]],
+      cpf: ['', this.cpfValidator],
       nationality: ['BRA', Validators.required],
       passport: [''],
       gender: [''],
@@ -219,14 +219,36 @@ export class PersonFormComponent implements OnInit {
     this.onNationalityChange();
   }
 
+  // Validador personalizado para CPF que aceita a máscara
+  cpfValidator(control: any) {
+    if (!control.value) {
+      return null; // CPF não é obrigatório
+    }
+    
+    // Remove a formatação para verificar se tem 11 dígitos
+    const cpfDigits = control.value.replace(/\D/g, '');
+    
+    if (cpfDigits.length !== 11) {
+      return { cpfInvalid: true };
+    }
+    
+    return null;
+  }
+
   loadPerson(id: string): void {
     this.loading = true;
     this.personService.getById(id).subscribe({
       next: (person) => {
+        // Se o CPF existe, formata-o antes de exibir no formulário
+        let formattedCpf = person.cpf;
+        if (formattedCpf) {
+          formattedCpf = this.applyCpfMask(formattedCpf);
+        }
+        
         this.personForm.patchValue({
           name: person.name,
           email: person.email,
-          cpf: person.cpf,
+          cpf: formattedCpf,
           nationality: person.nationality,
           passport: person.passport,
           gender: person.gender,
@@ -255,7 +277,7 @@ export class PersonFormComponent implements OnInit {
     }
     
     this.submitting = true;
-    const formData = this.personForm.value;
+    const formData = {...this.personForm.value};
     
     // Remove formatação do CPF antes de enviar para o backend
     if (formData.cpf) {
@@ -325,19 +347,28 @@ export class PersonFormComponent implements OnInit {
       value = value.substring(0, 11);
     }
     
-    // Formata o CPF enquanto o usuário digita
-    if (value.length > 9) {
-      event.target.value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
-    } else if (value.length > 6) {
-      event.target.value = value.replace(/^(\d{3})(\d{3})(\d{1,3})$/, '$1.$2.$3');
-    } else if (value.length > 3) {
-      event.target.value = value.replace(/^(\d{3})(\d{1,3})$/, '$1.$2');
-    } else {
-      event.target.value = value;
-    }
+    // Aplica a máscara ao CPF
+    event.target.value = this.applyCpfMask(value);
     
     // Limpa o erro de CPF quando o usuário começa a digitar novamente
     this.clearCpfError();
+  }
+
+  // Método para aplicar a máscara ao CPF
+  applyCpfMask(value: string): string {
+    if (!value) return '';
+    
+    value = value.replace(/\D/g, '');
+    
+    if (value.length > 9) {
+      return value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+    } else if (value.length > 6) {
+      return value.replace(/^(\d{3})(\d{3})(\d{1,3})$/, '$1.$2.$3');
+    } else if (value.length > 3) {
+      return value.replace(/^(\d{3})(\d{1,3})$/, '$1.$2');
+    } else {
+      return value;
+    }
   }
 
   clearCpfError(): void {

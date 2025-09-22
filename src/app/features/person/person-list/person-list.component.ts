@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { PersonService } from '../../../core/services/person.service';
 import { Person } from '../../../core/models/person.model';
 import { PageResponse } from '../../../core/models/page-response.model';
+import { trigger, state, style, transition, animate } from '@angular/animations';
 
 declare var bootstrap: any;
 
@@ -12,6 +13,24 @@ declare var bootstrap: any;
   selector: 'app-person-list',
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
+  animations: [
+    trigger('filterAnimation', [
+      state('collapsed', style({
+        height: '0',
+        opacity: 0,
+        overflow: 'hidden',
+        padding: '0',
+        margin: '0'
+      })),
+      state('expanded', style({
+        height: '*',
+        opacity: 1
+      })),
+      transition('collapsed <=> expanded', [
+        animate('300ms ease-in-out')
+      ])
+    ])
+  ],
   template: `
     <div class="row mb-4">
       <div class="col-md-6">
@@ -23,31 +42,43 @@ declare var bootstrap: any;
       </div>
     </div>
 
+    <!-- Botão para mostrar/esconder o filtro -->
     <div class="row mb-3">
-      <div class="col-md-6">
-        <div class="input-group">
-          <input 
-            type="text" 
-            class="form-control" 
-            placeholder="Buscar por nome..." 
-            [(ngModel)]="searchTerm"
-            (keyup.enter)="searchPersons()"
-          >
-          <button class="btn btn-outline-secondary" type="button" (click)="searchPersons()">Buscar</button>
-          <button class="btn btn-outline-secondary" type="button" (click)="resetSearch()">Limpar</button>
+      <div class="col-12">
+        <button class="btn btn-outline-primary w-100 d-flex justify-content-between align-items-center" (click)="toggleFilterVisibility()">
+          <span>{{ showFilter ? 'Ocultar Filtros' : 'Mostrar Filtros' }}</span>
+          <i class="bi" [ngClass]="showFilter ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtro em estilo sanfonado -->
+    <div class="filter-container" [@filterAnimation]="showFilter ? 'expanded' : 'collapsed'">
+      <div class="card card-body mb-3">
+        <div class="row">
+          <div class="col-12">
+            <div class="input-group">
+              <input 
+                type="text" 
+                class="form-control" 
+                placeholder="Buscar por nome..." 
+                [(ngModel)]="searchTerm"
+                (keyup.enter)="searchPersons()"
+              >
+              <button class="btn btn-outline-secondary" type="button" (click)="searchPersons()">Buscar</button>
+              <button class="btn btn-outline-secondary" type="button" (click)="resetSearch()">Limpar</button>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="col-md-6 text-end">
-        <div class="dropdown">
-          <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="pageSizeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            {{ pageSize }} itens por página
-          </button>
-          <ul class="dropdown-menu" aria-labelledby="pageSizeDropdown">
-            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(5)">5 itens</a></li>
-            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(10)">10 itens</a></li>
-            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(20)">20 itens</a></li>
-            <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(50)">50 itens</a></li>
-          </ul>
+    </div>
+
+    <!-- Indicador de filtro ativo -->
+    <div class="row mb-3" *ngIf="searchTerm && !showFilter">
+      <div class="col-12">
+        <div class="alert alert-info mb-0 d-flex justify-content-between align-items-center">
+          <span>Filtro ativo: "{{ searchTerm }}"</span>
+          <button type="button" class="btn btn-sm btn-info" (click)="resetSearch()">Limpar</button>
         </div>
       </div>
     </div>
@@ -93,13 +124,27 @@ declare var bootstrap: any;
         </table>
       </div>
 
-      <!-- Paginação -->
-      <div class="d-flex justify-content-between align-items-center mt-3" *ngIf="totalPages > 0">
-        <div>
-          Mostrando {{ persons.length }} de {{ totalElements }} registros
+      <!-- Paginação e seletor de itens por página -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mt-3" *ngIf="totalPages > 0">
+        <div class="d-flex align-items-center mb-3 mb-md-0">
+          <span class="me-3">Mostrando {{ persons.length }} de {{ totalElements }} registros</span>
+          
+          <!-- Combobox de itens por página movido para baixo -->
+          <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="pageSizeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+              {{ pageSize }} itens
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="pageSizeDropdown">
+              <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(5)">5 itens</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(10)">10 itens</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(20)">20 itens</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" (click)="changePageSize(50)">50 itens</a></li>
+            </ul>
+          </div>
         </div>
+        
         <nav>
-          <ul class="pagination">
+          <ul class="pagination mb-0">
             <li class="page-item" [class.disabled]="currentPage === 0">
               <a class="page-link" href="javascript:void(0)" (click)="goToPage(0)">Primeira</a>
             </li>
@@ -124,7 +169,7 @@ declare var bootstrap: any;
       </div>
     </div>
 
-    <div class="toast-container" *ngIf="showToast">
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" *ngIf="showToast">
       <div class="toast show bg-success text-white">
         <div class="toast-header bg-success text-white">
           <strong class="me-auto">Sucesso</strong>
@@ -135,7 +180,44 @@ declare var bootstrap: any;
         </div>
       </div>
     </div>
-  `
+  `,
+  styles: [`
+    /* Estilos para a animação do filtro */
+    .filter-container {
+      overflow: hidden;
+    }
+    
+    /* Estilo para o botão de filtro */
+    .btn-outline-primary:focus {
+      box-shadow: none;
+    }
+    
+    /* Estilo para o spinner de carregamento */
+    .loading-spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Adicione ícones Bootstrap se ainda não estiverem incluídos */
+    @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css");
+    
+    /* Ajustes para responsividade */
+    @media (max-width: 767px) {
+      .pagination {
+        justify-content: center;
+      }
+    }
+  `]
 })
 export class PersonListComponent implements OnInit, AfterViewInit {
   persons: Person[] = [];
@@ -143,6 +225,9 @@ export class PersonListComponent implements OnInit, AfterViewInit {
   searchTerm = '';
   showToast = false;
   toastMessage = '';
+  
+  // Controle de visibilidade do filtro
+  showFilter = false;
   
   // Paginação
   currentPage = 0;
@@ -162,10 +247,16 @@ export class PersonListComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     // Inicializar os dropdowns do Bootstrap após a renderização da view
-    const dropdownElementList = this.elementRef.nativeElement.querySelectorAll('.dropdown-toggle');
-    dropdownElementList.forEach((dropdownToggleEl: any) => {
-      new bootstrap.Dropdown(dropdownToggleEl);
-    });
+    setTimeout(() => {
+      const dropdownElementList = this.elementRef.nativeElement.querySelectorAll('.dropdown-toggle');
+      dropdownElementList.forEach((dropdownToggleEl: any) => {
+        new bootstrap.Dropdown(dropdownToggleEl);
+      });
+    }, 0);
+  }
+
+  toggleFilterVisibility(): void {
+    this.showFilter = !this.showFilter;
   }
 
   loadPersons(): void {
@@ -221,6 +312,11 @@ export class PersonListComponent implements OnInit, AfterViewInit {
         this.totalPages = response.totalPages;
         this.totalElements = response.totalElements;
         this.loading = false;
+        
+        // Fechar o filtro após a pesquisa
+        if (this.showFilter) {
+          this.showFilter = false;
+        }
       },
       error: (error) => {
         console.error('Error searching persons', error);
