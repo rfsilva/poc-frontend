@@ -1,0 +1,69 @@
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h3>Detalhes da Pessoa</h3>
+    <div>
+      <button class="btn btn-outline-primary me-2" [routerLink]="['/persons/edit', person?.id]">Editar</button>
+      <button class="btn btn-outline-secondary" routerLink="/persons">Voltar</button>
+    </div>
+  </div>
+  
+  <div *ngIf="loading" class="card-body text-center">
+    <div class="loading-spinner"></div>
+    <p class="mt-2">Carregando...</p>
+  </div>
+  
+  <div *ngIf="!loading && person" class="card-body">
+    <div class="row mb-3">
+      <div class="col-md-3 fw-bold">ID:</div>
+      <div class="col-md-9">{{ person.id }}</div>
+    </div>
+    
+    <div class="row mb-3">
+      <div class="col-md-3 fw-bold">Nome:</div>
+      <div class="col-md-9">{{ person.name }}</div>
+    </div>
+    
+    <div class="row mb-3">
+      <div class="col-md-3 fw-bold">Email:</div>
+      <div class="col-md-9">{{ person.email }}</div>
+    </div>
+    
+    <div class="row mb-3" *ngIf="person.formattedCpf">
+      <div class="col-md-3 fw-bold">CPF:</div>
+      <div class="col-md-9">{{ person.formattedCpf }}</div>
+    </div>
+    
+    <div class="row mb-3" *ngIf="person.nationality">
+      <div class="col-md-3 fw-bold">Nacionalidade:</div>
+      <div class="col-md-9">
+        {{ person.nationalityFlag }} {{ person.nationalityName }} ({{ person.nationality }})
+      </div>
+    </div>
+    
+    <div class="row mb-3" *ngIf="person.passport">
+      <div class="col-md-3 fw-bold">Passaporte:</div>
+      <div class="col-md-9">{{ person.passport }}</div>
+    </div>
+    
+    <div class="row mb-3" *ngIf="person.gender">
+      <div class="col-md-3 fw-bold">Gênero:</div>
+      <div class="col-md-9">{{ person.genderDisplay }}</div>
+    </div>
+    
+    <div class="row mb-3" *ngIf="person.address">
+      <div class="col-md-3 fw-bold">Endereço:</div>
+      <div class="col-md-9">{{ person.address }}</div>
+    </div>
+    
+    <div class="row mb-3" *ngIf="person.phoneNumber">
+      <div class="col-md-3 fw-bold">Telefone:</div>
+      <div class="col-md-9">{{ person.phoneNumber }}</div>
+    </div>
+  </div>
+  
+  <div *ngIf="!loading && !person" class="card-body">
+    <div class="alert alert-danger">
+      Pessoa não encontrada.
+    </div>
+  </div>
+</div>

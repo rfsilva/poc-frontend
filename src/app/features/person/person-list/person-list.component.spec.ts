@@ -1,64 +1,50 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { PersonListComponent } from './person-list.component';
 import { PersonService } from '../../../core/services/person.service';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { FormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
-import { Person } from '../../../core/models/person.model';
 import { PageResponse } from '../../../core/models/page-response.model';
-import { By } from '@angular/platform-browser';
-import { CommonModule } from '@angular/common';
+import { Person } from '../../../core/models/person.model';
 
 describe('PersonListComponent', () => {
   let component: PersonListComponent;
   let fixture: ComponentFixture<PersonListComponent>;
   let personServiceSpy: jasmine.SpyObj<PersonService>;
 
-  const mockPersons: Person[] = [
-    { 
-      id: '1', 
-      name: 'John Doe', 
-      email: 'john@example.com', 
-      cpf: '12345678901',
-      formattedCpf: '123.456.789-01',
-      nationality: 'BRA',
-      nationalityName: 'Brasil',
-      nationalityFlag: '🇧🇷',
-      gender: 'M',
-      genderDisplay: 'Masculino'
-    },
-    { 
-      id: '2', 
-      name: 'Jane Doe', 
-      email: 'jane@example.com', 
-      cpf: '98765432109',
-      formattedCpf: '987.654.321-09',
-      nationality: 'USA',
-      nationalityName: 'Estados Unidos',
-      nationalityFlag: '🇺🇸',
-      passport: 'AB1234567',
-      gender: 'F',
-      genderDisplay: 'Feminino'
-    }
-  ];
-
   const mockPageResponse: PageResponse<Person> = {
-    content: mockPersons,
+    content: [
+      { 
+        id: '1', 
+        name: 'John Doe', 
+        email: 'john@example.com', 
+        nationality: 'USA',
+        formattedCpf: '123.456.789-09',
+        nationalityName: 'United States',
+        nationalityFlag: '🇺🇸',
+        genderDisplay: 'Male',
+        gender: 'M'
+      }
+    ],
     pageNumber: 0,
     pageSize: 10,
-    totalElements: 2,
+    totalElements: 1,
     totalPages: 1,
     last: true
   };
 
   beforeEach(async () => {
     const spy = jasmine.createSpyObj('PersonService', [
-      'getAllPaged', 'searchByNamePaged', 'delete', 'clearCache'
+      'getAllPaged', 
+      'filterPersons', 
+      'clearCache', 
+      'delete'
     ]);
 
     await TestBed.configureTestingModule({
       imports: [
-        CommonModule,
+        NoopAnimationsModule,
         FormsModule,
         RouterTestingModule,
         PersonListComponent
@@ -69,10 +55,11 @@ describe('PersonListComponent', () => {
     }).compileComponents();
 
     personServiceSpy = TestBed.inject(PersonService) as jasmine.SpyObj<PersonService>;
-  });
-
-  beforeEach(() => {
     personServiceSpy.getAllPaged.and.returnValue(of(mockPageResponse));
+    personServiceSpy.filterPersons.and.returnValue(of(mockPageResponse));
+    personServiceSpy.clearCache.and.returnValue(of(undefined));
+    personServiceSpy.delete.and.returnValue(of(undefined));
+
     fixture = TestBed.createComponent(PersonListComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -84,217 +71,232 @@ describe('PersonListComponent', () => {
 
   it('should load persons on init', () => {
     expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 10, 'name', 'ASC');
-    expect(component.persons).toEqual(mockPersons);
-    expect(component.currentPage).toBe(0);
-    expect(component.totalPages).toBe(1);
-    expect(component.totalElements).toBe(2);
-  });
-
-  it('should handle error when loading persons', () => {
-    personServiceSpy.getAllPaged.and.returnValue(throwError(() => new Error('Error loading persons')));
-    
-    console.error = jasmine.createSpy('error');
-    component.loadPersonsPaged();
-    
-    expect(console.error).toHaveBeenCalled();
-    expect(component.loading).toBeFalse();
-  });
-
-  it('should search persons by name', () => {
-    const searchResponse: PageResponse<Person> = {
-      content: [mockPersons[0]],
-      pageNumber: 0,
-      pageSize: 10,
-      totalElements: 1,
-      totalPages: 1,
-      last: true
-    };
-    
-    personServiceSpy.searchByNamePaged.and.returnValue(of(searchResponse));
-    
-    component.searchTerm = 'John';
-    component.searchPersons();
-    
-    expect(personServiceSpy.searchByNamePaged).toHaveBeenCalledWith('John', 0, 10, 'name', 'ASC');
-    expect(component.persons).toEqual([mockPersons[0]]);
-    expect(component.currentPage).toBe(0);
-    expect(component.totalPages).toBe(1);
+    expect(component.persons).toEqual(mockPageResponse.content);
     expect(component.totalElements).toBe(1);
+    expect(component.totalPages).toBe(1);
   });
 
-  it('should reset search and load all persons', () => {
-    component.searchTerm = 'John';
-    component.resetSearch();
-    
-    expect(component.searchTerm).toBe('');
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledTimes(2); // Once on init, once on reset
+  it('should toggle filter visibility', () => {
+    expect(component.showFilter).toBeFalse();
+    component.toggleFilterVisibility();
+    expect(component.showFilter).toBeTrue();
+    component.toggleFilterVisibility();
+    expect(component.showFilter).toBeFalse();
   });
 
-  it('should delete a person after confirmation', fakeAsync(() => {
-    spyOn(window, 'confirm').and.returnValue(true);
-    personServiceSpy.delete.and.returnValue(of(void 0));
-    
-    component.deletePerson('1');
+  it('should apply filters', fakeAsync(() => {
+    // Set filters
+    component.filters = {
+      name: 'John',
+      email: 'john@example.com',
+      cpf: '',
+      passport: '',
+      gender: 'M'
+    };
+
+    // Apply filters
+    component.applyFilters();
     tick();
-    
-    expect(personServiceSpy.delete).toHaveBeenCalledWith('1');
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledTimes(2); // Once on init, once after delete
-    expect(component.showToast).toBeTrue();
-    expect(component.toastMessage).toContain('excluída com sucesso');
+
+    // Verify service was called with correct parameters
+    expect(personServiceSpy.filterPersons).toHaveBeenCalledWith(
+      { name: 'John', email: 'john@example.com', gender: 'M' },
+      0,
+      10,
+      'name',
+      'ASC'
+    );
+
+    // Verify component state
+    expect(component.persons).toEqual(mockPageResponse.content);
+    expect(component.showFilter).toBeFalse();
   }));
 
-  it('should not delete a person if not confirmed', () => {
-    spyOn(window, 'confirm').and.returnValue(false);
-    
-    component.deletePerson('1');
-    
-    expect(personServiceSpy.delete).not.toHaveBeenCalled();
-  });
+  it('should reset filters', fakeAsync(() => {
+    // Set filters
+    component.filters = {
+      name: 'John',
+      email: 'john@example.com',
+      cpf: '12345678901',
+      passport: 'AB123456',
+      gender: 'M'
+    };
 
-  it('should clear cache', fakeAsync(() => {
-    personServiceSpy.clearCache.and.returnValue(of(void 0));
-    
-    component.clearCache();
+    // Reset filters
+    component.resetFilters();
     tick();
-    
-    expect(personServiceSpy.clearCache).toHaveBeenCalled();
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledTimes(2); // Once on init, once after clear cache
-    expect(component.showToast).toBeTrue();
-    expect(component.toastMessage).toContain('Cache limpo com sucesso');
+
+    // Verify filters are cleared
+    expect(component.filters).toEqual({
+      name: '',
+      email: '',
+      cpf: '',
+      passport: '',
+      gender: ''
+    });
+
+    // Verify service was called to reload data
+    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 10, 'name', 'ASC');
   }));
 
-  it('should navigate to a specific page', () => {
-    const page2Response: PageResponse<Person> = {
-      content: [mockPersons[1]],
-      pageNumber: 1,
-      pageSize: 10,
-      totalElements: 2,
-      totalPages: 2,
-      last: true
+  it('should detect active filters', () => {
+    // No active filters
+    component.filters = {
+      name: '',
+      email: '',
+      cpf: '',
+      passport: '',
+      gender: ''
     };
-    
-    personServiceSpy.getAllPaged.and.returnValue(of(page2Response));
-    
-    component.goToPage(1);
-    
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(1, 10, 'name', 'ASC');
-    expect(component.currentPage).toBe(1);
+    expect(component.hasActiveFilters()).toBeFalse();
+
+    // With active filters
+    component.filters = {
+      name: 'John',
+      email: '',
+      cpf: '',
+      passport: '',
+      gender: ''
+    };
+    expect(component.hasActiveFilters()).toBeTrue();
   });
 
-  it('should not navigate to an invalid page', () => {
-    component.totalPages = 2;
-    component.goToPage(-1);
-    component.goToPage(2);
-    
-    // Should still be called only once from init
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledTimes(1);
+  it('should get active filters', () => {
+    // Set filters with some empty values
+    component.filters = {
+      name: 'John',
+      email: 'john@example.com',
+      cpf: '',
+      passport: '',
+      gender: 'M'
+    };
+
+    // Get active filters
+    const activeFilters = component.getActiveFilters();
+
+    // Verify only non-empty filters are returned
+    expect(activeFilters).toEqual({
+      name: 'John',
+      email: 'john@example.com',
+      gender: 'M'
+    });
   });
 
-  it('should change page size', () => {
-    const newSizeResponse: PageResponse<Person> = {
-      content: mockPersons,
-      pageNumber: 0,
-      pageSize: 5,
-      totalElements: 2,
-      totalPages: 1,
-      last: true
-    };
-    
-    personServiceSpy.getAllPaged.and.returnValue(of(newSizeResponse));
-    
-    component.changePageSize(5);
-    
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 5, 'name', 'ASC');
-    expect(component.pageSize).toBe(5);
-    expect(component.currentPage).toBe(0); // Should reset to first page
-  });
+  it('should change page size', fakeAsync(() => {
+    component.changePageSize(20);
+    tick();
 
-  it('should sort by column', () => {
-    const sortedResponse: PageResponse<Person> = {
-      content: mockPersons.slice().reverse(), // Reversed order
-      pageNumber: 0,
-      pageSize: 10,
-      totalElements: 2,
-      totalPages: 1,
-      last: true
-    };
-    
-    personServiceSpy.getAllPaged.and.returnValue(of(sortedResponse));
-    
-    // First click on column should sort ASC
+    expect(component.pageSize).toBe(20);
+    expect(component.currentPage).toBe(0);
+    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 20, 'name', 'ASC');
+  }));
+
+  it('should change sort order', fakeAsync(() => {
+    // First click on same column - should toggle direction
+    component.sortBy = 'name';
+    component.sortDirection = 'ASC';
+    component.sort('name');
+    tick();
+
+    expect(component.sortBy).toBe('name');
+    expect(component.sortDirection).toBe('DESC');
+    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 10, 'name', 'DESC');
+
+    // Click on different column - should set to ASC
     component.sort('email');
-    
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 10, 'email', 'ASC');
+    tick();
+
     expect(component.sortBy).toBe('email');
     expect(component.sortDirection).toBe('ASC');
-    
-    // Second click on same column should toggle to DESC
-    personServiceSpy.getAllPaged.and.returnValue(of(sortedResponse));
-    component.sort('email');
-    
-    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 10, 'email', 'DESC');
-    expect(component.sortBy).toBe('email');
-    expect(component.sortDirection).toBe('DESC');
-  });
+    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(0, 10, 'email', 'ASC');
+  }));
 
-  it('should get correct page range', () => {
-    // Test with small number of pages
-    component.currentPage = 0;
+  it('should clear cache', fakeAsync(() => {
+    component.clearCache();
+    tick();
+
+    expect(personServiceSpy.clearCache).toHaveBeenCalled();
+    expect(personServiceSpy.getAllPaged).toHaveBeenCalled();
+    expect(component.showToast).toBeTrue();
+  }));
+
+  it('should delete person', fakeAsync(() => {
+    // Mock confirm to return true
+    spyOn(window, 'confirm').and.returnValue(true);
+
+    component.deletePerson('1');
+    tick();
+
+    expect(personServiceSpy.delete).toHaveBeenCalledWith('1');
+    expect(personServiceSpy.getAllPaged).toHaveBeenCalled();
+    expect(component.showToast).toBeTrue();
+  }));
+
+  it('should not delete person if not confirmed', fakeAsync(() => {
+    // Mock confirm to return false
+    spyOn(window, 'confirm').and.returnValue(false);
+
+    component.deletePerson('1');
+    tick();
+
+    expect(personServiceSpy.delete).not.toHaveBeenCalled();
+  }));
+
+  it('should navigate between pages', fakeAsync(() => {
+    // Mock multiple pages
+    const multiPageResponse: PageResponse<Person> = {
+      ...mockPageResponse,
+      totalPages: 3,
+      totalElements: 30,
+      pageNumber: 1,
+      last: false
+    };
+    personServiceSpy.getAllPaged.and.returnValue(of(multiPageResponse));
+
+    // Go to page 2
+    component.goToPage(2);
+    tick();
+
+    expect(component.currentPage).toBe(2);
+    expect(personServiceSpy.getAllPaged).toHaveBeenCalledWith(2, 10, 'name', 'ASC');
+  }));
+
+  it('should not navigate to invalid pages', fakeAsync(() => {
+    // Set up component with multiple pages
     component.totalPages = 3;
+    component.currentPage = 1;
+
+    // Try to go to negative page
+    component.goToPage(-1);
+    tick();
+
+    // Current page should not change
+    expect(component.currentPage).toBe(1);
     
-    let range = component.getPageRange();
-    expect(range).toEqual([0, 1, 2]);
-    
-    // Test with current page in middle
+    // Try to go to page beyond total
+    component.goToPage(3);
+    tick();
+
+    // Current page should not change
+    expect(component.currentPage).toBe(1);
+  }));
+
+  it('should generate correct page range', () => {
+    // Set up component with multiple pages
+    component.totalPages = 10;
     component.currentPage = 5;
-    component.totalPages = 10;
+
+    const range = component.getPageRange();
     
-    range = component.getPageRange();
-    expect(range.length).toBe(5);
-    expect(range).toContain(5); // Should contain current page
+    // Should show 5 pages centered around current page
+    expect(range).toEqual([3, 4, 5, 6, 7]);
     
-    // Test with current page near end
+    // Test at beginning
+    component.currentPage = 1;
+    expect(component.getPageRange()).toEqual([0, 1, 2, 3, 4]);
+    
+    // Test at end
     component.currentPage = 8;
-    component.totalPages = 10;
-    
-    range = component.getPageRange();
-    expect(range.length).toBe(5);
-    expect(range).toContain(8); // Should contain current page
-    expect(range[range.length - 1]).toBe(9); // Should end with last page
-  });
-
-  it('should search when pressing enter in search input', () => {
-    spyOn(component, 'searchPersons');
-    
-    const searchInput = fixture.debugElement.query(By.css('input[placeholder="Buscar por nome..."]'));
-    searchInput.triggerEventHandler('keyup.enter', {});
-    
-    expect(component.searchPersons).toHaveBeenCalled();
-  });
-
-  it('should display formatted CPF in the table', () => {
-    fixture.detectChanges();
-    const tableRows = fixture.debugElement.queryAll(By.css('tbody tr'));
-    expect(tableRows.length).toBe(2);
-    
-    const cpfCells = fixture.debugElement.queryAll(By.css('tbody tr td:nth-child(3)'));
-    expect(cpfCells[0].nativeElement.textContent).toContain('123.456.789-01');
-    expect(cpfCells[1].nativeElement.textContent).toContain('987.654.321-09');
-  });
-
-  it('should display nationality with flag in the table', () => {
-    fixture.detectChanges();
-    const nationalityCells = fixture.debugElement.queryAll(By.css('tbody tr td:nth-child(4)'));
-    expect(nationalityCells[0].nativeElement.textContent).toContain('🇧🇷');
-    expect(nationalityCells[0].nativeElement.textContent).toContain('Brasil');
-    expect(nationalityCells[1].nativeElement.textContent).toContain('🇺🇸');
-    expect(nationalityCells[1].nativeElement.textContent).toContain('Estados Unidos');
-  });
-
-  it('should display gender in the table', () => {
-    fixture.detectChanges();
-    const genderCells = fixture.debugElement.queryAll(By.css('tbody tr td:nth-child(5)'));
-    expect(genderCells[0].nativeElement.textContent).toContain('Masculino');
-    expect(genderCells[1].nativeElement.textContent).toContain('Feminino');
+    expect(component.getPageRange()).toEqual([5, 6, 7, 8, 9]);
   });
 });

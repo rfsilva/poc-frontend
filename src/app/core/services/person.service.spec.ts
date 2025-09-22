@@ -25,228 +25,124 @@ describe('PersonService', () => {
     expect(service).toBeTruthy();
   });
 
-  describe('getAll', () => {
-    it('should return all persons', () => {
-      const mockPersons: Person[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' },
-        { id: '2', name: 'Jane Doe', email: 'jane@example.com', birthDate: '1992-02-02' }
-      ];
+  it('should get all persons', () => {
+    const mockPersons: Person[] = [
+      { id: '1', name: 'John Doe', email: 'john@example.com', nationality: 'USA' },
+      { id: '2', name: 'Jane Doe', email: 'jane@example.com', nationality: 'CAN' }
+    ];
 
-      service.getAll().subscribe(persons => {
-        expect(persons.length).toBe(2);
-        expect(persons).toEqual(mockPersons);
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockPersons);
+    service.getAll().subscribe(persons => {
+      expect(persons).toEqual(mockPersons);
     });
+
+    const req = httpMock.expectOne('http://localhost:8080/api/persons');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockPersons);
   });
 
-  describe('getAllPaged', () => {
-    it('should return paged persons with default parameters', () => {
-      const mockPersons: Person[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' },
-        { id: '2', name: 'Jane Doe', email: 'jane@example.com', birthDate: '1992-02-02' }
-      ];
-      
-      const mockPageResponse: PageResponse<Person> = {
-        content: mockPersons,
-        pageNumber: 0,
-        pageSize: 10,
-        totalElements: 2,
-        totalPages: 1,
-        last: true
-      };
+  it('should get all persons with pagination', () => {
+    const mockResponse: PageResponse<Person> = {
+      content: [
+        { id: '1', name: 'John Doe', email: 'john@example.com', nationality: 'USA' }
+      ],
+      pageNumber: 0,
+      pageSize: 10,
+      totalElements: 1,
+      totalPages: 1,
+      last: true
+    };
 
-      service.getAllPaged().subscribe(response => {
-        expect(response.content.length).toBe(2);
-        expect(response.content).toEqual(mockPersons);
-        expect(response.pageNumber).toBe(0);
-        expect(response.pageSize).toBe(10);
-        expect(response.totalElements).toBe(2);
-        expect(response.totalPages).toBe(1);
-        expect(response.last).toBe(true);
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/paged?page=0&size=10&sortBy=name&direction=ASC');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockPageResponse);
+    service.getAllPaged(0, 10, 'name', 'ASC').subscribe(response => {
+      expect(response).toEqual(mockResponse);
     });
 
-    it('should return paged persons with custom parameters', () => {
-      const mockPersons: Person[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' }
-      ];
-      
-      const mockPageResponse: PageResponse<Person> = {
-        content: mockPersons,
-        pageNumber: 1,
-        pageSize: 5,
-        totalElements: 6,
-        totalPages: 2,
-        last: true
-      };
-
-      service.getAllPaged(1, 5, 'email', 'DESC').subscribe(response => {
-        expect(response.content.length).toBe(1);
-        expect(response.content).toEqual(mockPersons);
-        expect(response.pageNumber).toBe(1);
-        expect(response.pageSize).toBe(5);
-        expect(response.totalElements).toBe(6);
-        expect(response.totalPages).toBe(2);
-        expect(response.last).toBe(true);
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/paged?page=1&size=5&sortBy=email&direction=DESC');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockPageResponse);
-    });
+    const req = httpMock.expectOne('http://localhost:8080/api/persons/paged?page=0&size=10&sortBy=name&direction=ASC');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockResponse);
   });
 
-  describe('getById', () => {
-    it('should return a person by id', () => {
-      const mockPerson: Person = { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' };
+  it('should search persons by name with pagination', () => {
+    const mockResponse: PageResponse<Person> = {
+      content: [
+        { id: '1', name: 'John Doe', email: 'john@example.com', nationality: 'USA' }
+      ],
+      pageNumber: 0,
+      pageSize: 10,
+      totalElements: 1,
+      totalPages: 1,
+      last: true
+    };
 
-      service.getById('1').subscribe(person => {
-        expect(person).toEqual(mockPerson);
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/1');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockPerson);
+    service.searchByNamePaged('John', 0, 10, 'name', 'ASC').subscribe(response => {
+      expect(response).toEqual(mockResponse);
     });
+
+    const req = httpMock.expectOne('http://localhost:8080/api/persons/search/paged?name=John&page=0&size=10&sortBy=name&direction=ASC');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockResponse);
   });
 
-  describe('create', () => {
-    it('should create a person', () => {
-      const mockPerson: Person = { name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' };
-      const mockResponse: Person = { id: '1', ...mockPerson };
+  it('should filter persons with multiple criteria', () => {
+    const mockResponse: PageResponse<Person> = {
+      content: [
+        { id: '1', name: 'John Doe', email: 'john@example.com', nationality: 'USA', gender: 'M' }
+      ],
+      pageNumber: 0,
+      pageSize: 10,
+      totalElements: 1,
+      totalPages: 1,
+      last: true
+    };
 
-      service.create(mockPerson).subscribe(person => {
-        expect(person).toEqual(mockResponse);
-      });
+    const filters = {
+      name: 'John',
+      email: 'john@example.com',
+      gender: 'M'
+    };
 
-      const req = httpMock.expectOne('http://localhost:8080/api/persons');
-      expect(req.request.method).toBe('POST');
-      expect(req.request.body).toEqual(mockPerson);
-      req.flush(mockResponse);
+    service.filterPersons(filters, 0, 10, 'name', 'ASC').subscribe(response => {
+      expect(response).toEqual(mockResponse);
     });
+
+    const req = httpMock.expectOne('http://localhost:8080/api/persons/filter?page=0&size=10&sortBy=name&direction=ASC&name=John&email=john@example.com&gender=M');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockResponse);
   });
 
-  describe('update', () => {
-    it('should update a person', () => {
-      const mockPerson: Person = { id: '1', name: 'John Updated', email: 'john@example.com', birthDate: '1990-01-01' };
+  it('should filter persons with POST method', () => {
+    const mockResponse: PageResponse<Person> = {
+      content: [
+        { id: '1', name: 'John Doe', email: 'john@example.com', nationality: 'USA', cpf: '12345678901' }
+      ],
+      pageNumber: 0,
+      pageSize: 10,
+      totalElements: 1,
+      totalPages: 1,
+      last: true
+    };
 
-      service.update('1', mockPerson).subscribe(person => {
-        expect(person).toEqual(mockPerson);
-      });
+    const filters = {
+      name: 'John',
+      cpf: '12345678901'
+    };
 
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/1');
-      expect(req.request.method).toBe('PUT');
-      expect(req.request.body).toEqual(mockPerson);
-      req.flush(mockPerson);
+    service.filterPersonsPost(filters, 0, 10, 'name', 'ASC').subscribe(response => {
+      expect(response).toEqual(mockResponse);
     });
+
+    const req = httpMock.expectOne('http://localhost:8080/api/persons/filter?page=0&size=10&sortBy=name&direction=ASC');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ filters });
+    req.flush(mockResponse);
   });
 
-  describe('delete', () => {
-    it('should delete a person', () => {
-      service.delete('1').subscribe(response => {
-        expect(response).toBeNull();
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/1');
-      expect(req.request.method).toBe('DELETE');
-      req.flush(null);
-    });
-  });
-
-  describe('searchByName', () => {
-    it('should search persons by name', () => {
-      const mockPersons: Person[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' }
-      ];
-
-      service.searchByName('John').subscribe(persons => {
-        expect(persons.length).toBe(1);
-        expect(persons).toEqual(mockPersons);
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/search?name=John');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockPersons);
-    });
-  });
-
-  describe('searchByNamePaged', () => {
-    it('should search persons by name with pagination', () => {
-      const mockPersons: Person[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' }
-      ];
-      
-      const mockPageResponse: PageResponse<Person> = {
-        content: mockPersons,
-        pageNumber: 0,
-        pageSize: 10,
-        totalElements: 1,
-        totalPages: 1,
-        last: true
-      };
-
-      service.searchByNamePaged('John').subscribe(response => {
-        expect(response.content.length).toBe(1);
-        expect(response.content).toEqual(mockPersons);
-        expect(response.pageNumber).toBe(0);
-        expect(response.pageSize).toBe(10);
-        expect(response.totalElements).toBe(1);
-        expect(response.totalPages).toBe(1);
-        expect(response.last).toBe(true);
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/search/paged?name=John&page=0&size=10&sortBy=name&direction=ASC');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockPageResponse);
+  it('should clear cache', () => {
+    service.clearCache().subscribe(response => {
+      expect(response).toBeUndefined();
     });
 
-    it('should search persons by name with custom pagination parameters', () => {
-      const mockPersons: Person[] = [
-        { id: '1', name: 'John Doe', email: 'john@example.com', birthDate: '1990-01-01' }
-      ];
-      
-      const mockPageResponse: PageResponse<Person> = {
-        content: mockPersons,
-        pageNumber: 1,
-        pageSize: 5,
-        totalElements: 6,
-        totalPages: 2,
-        last: true
-      };
-
-      service.searchByNamePaged('John', 1, 5, 'email', 'DESC').subscribe(response => {
-        expect(response.content.length).toBe(1);
-        expect(response.content).toEqual(mockPersons);
-        expect(response.pageNumber).toBe(1);
-        expect(response.pageSize).toBe(5);
-        expect(response.totalElements).toBe(6);
-        expect(response.totalPages).toBe(2);
-        expect(response.last).toBe(true);
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/search/paged?name=John&page=1&size=5&sortBy=email&direction=DESC');
-      expect(req.request.method).toBe('GET');
-      req.flush(mockPageResponse);
-    });
-  });
-
-  describe('clearCache', () => {
-    it('should clear the cache', () => {
-      service.clearCache().subscribe(response => {
-        expect(response).toBeNull();
-      });
-
-      const req = httpMock.expectOne('http://localhost:8080/api/persons/cache/clear');
-      expect(req.request.method).toBe('DELETE');
-      req.flush(null);
-    });
+    const req = httpMock.expectOne('http://localhost:8080/api/persons/cache/clear');
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
   });
 });

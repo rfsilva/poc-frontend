@@ -57,6 +57,51 @@ export class PersonService {
     return this.http.get<PageResponse<Person>>(`${this.apiUrl}/search/paged`, { params });
   }
 
+  filterPersons(
+    filters: {
+      name?: string;
+      email?: string;
+      cpf?: string;
+      passport?: string;
+      gender?: string;
+    },
+    page: number = 0,
+    size: number = 10,
+    sortBy: string = 'name',
+    direction: string = 'ASC'
+  ): Observable<PageResponse<Person>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sortBy', sortBy)
+      .set('direction', direction);
+    
+    // Adicionar apenas os filtros não vazios
+    if (filters.name) params = params.set('name', filters.name);
+    if (filters.email) params = params.set('email', filters.email);
+    if (filters.cpf) params = params.set('cpf', filters.cpf);
+    if (filters.passport) params = params.set('passport', filters.passport);
+    if (filters.gender) params = params.set('gender', filters.gender);
+    
+    return this.http.get<PageResponse<Person>>(`${this.apiUrl}/filter`, { params });
+  }
+
+  filterPersonsPost(
+    filters: Record<string, string>,
+    page: number = 0,
+    size: number = 10,
+    sortBy: string = 'name',
+    direction: string = 'ASC'
+  ): Observable<PageResponse<Person>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString())
+      .set('sortBy', sortBy)
+      .set('direction', direction);
+    
+    return this.http.post<PageResponse<Person>>(`${this.apiUrl}/filter`, { filters }, { params });
+  }
+
   clearCache(): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/cache/clear`);
   }
